@@ -1,12 +1,12 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-package vaeke.restcountries.v0.rest;
+package vaeke.restcountries.v1.rest;
 
-import java.io.IOException;
 import java.util.List;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -18,14 +18,13 @@ import javax.ws.rs.ext.Provider;
 
 import org.apache.log4j.Logger;
 
-import vaeke.restcountries.domain.ResponseEntity;
-import vaeke.restcountries.v0.domain.Country;
-
 import com.google.gson.Gson;
 
+import vaeke.restcountries.v1.domain.Country;
+import vaeke.restcountries.v1.domain.ResponseEntity;
+
 @Provider
-@Path("rest")
-@Produces(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON + ";charset=utf-8")
 public class CountryRest {
 	
 	private static final Logger LOG = Logger.getLogger(CountryRest.class);
@@ -35,58 +34,22 @@ public class CountryRest {
 	public Object getAllCountries() {
 		return this.getCountries();
 	}
-
+	
 	@GET
 	public Object getCountries() {
 		LOG.info("Getting all");
-		try {
 			return CountryService.getInstance().getAll();
-		} catch (IOException e) {
-			LOG.error(e.getMessage(), e);
-			return getResponse(Status.INTERNAL_SERVER_ERROR); 
-		}
 	}
 	
 	@GET
 	@Path("alpha/{alphacode}")
 	public Object getByAlpha(@PathParam("alphacode") String alpha) {
 		LOG.info("Getting by alpha " + alpha);
-		try {
 			Country country = CountryService.getInstance().getByAlpha(alpha);
 			if(country != null) {
 				return country;
 			}
 			return getResponse(Status.NOT_FOUND);
-		} catch (IOException e) {
-			LOG.error(e.getMessage(), e);
-			return getResponse(Status.INTERNAL_SERVER_ERROR); 
-		}
-	}
-	
-	/**
-	 * @deprecated As of release 0.7, replaced with {@link getByAlpha(String alpha)}
-	 * @param alpha2
-	 * @return
-	 */
-	@GET
-	@Path("alpha2/{alpha2code}")
-	@Deprecated
-	public Object getByAlpha2(@PathParam("alpha2code") String alpha2) {
-		LOG.info("Getting by deprecated alpha2 " + alpha2);
-		return this.getByAlpha(alpha2);
-	}
-	
-	/**
-	 * @deprecated As of release 0.7, replaced with {@link getByAlpha(String alpha)}
-	 * @param alpha3
-	 * @return
-	 */
-	@GET
-	@Path("alpha3/{alpha3code}")
-	@Deprecated
-	public Object getByAlpha3(@PathParam("alpha3code") String alpha3) {
-		LOG.info("Getting by deprecated alpha3 " + alpha3);
-		return this.getByAlpha(alpha3);
 	}
 	
 	@GET
@@ -99,7 +62,7 @@ public class CountryRest {
 				return countries;
 			}
 			return getResponse(Status.NOT_FOUND);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			LOG.error(e.getMessage(), e);
 			return getResponse(Status.INTERNAL_SERVER_ERROR); 
 		}
@@ -115,7 +78,7 @@ public class CountryRest {
 				return countries;
 			}
 			return getResponse(Status.NOT_FOUND);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			LOG.error(e.getMessage(), e);
 			return getResponse(Status.INTERNAL_SERVER_ERROR); 
 		}
@@ -123,15 +86,15 @@ public class CountryRest {
 	
 	@GET
 	@Path("name/{name}")
-	public Object getByName(@PathParam("name") String name) {
+	public Object getByName(@PathParam("name") String name, @QueryParam("fullText") boolean fullText) {
 		LOG.info("Getting by name " + name);
 		try {
-			List<Country> countries = CountryService.getInstance().getByName(name);
+			List<Country> countries = CountryService.getInstance().getByName(name, fullText);
 			if (!countries.isEmpty()) {
 				return countries;
 			} 
 			return getResponse(Status.NOT_FOUND);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			LOG.error(e.getMessage(), e);
 			return getResponse(Status.INTERNAL_SERVER_ERROR); 
 		}
@@ -147,7 +110,7 @@ public class CountryRest {
 				return countries;
 			} 
 			return getResponse(Status.NOT_FOUND);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			LOG.error(e.getMessage(), e);
 			return getResponse(Status.INTERNAL_SERVER_ERROR); 
 		}
@@ -163,7 +126,7 @@ public class CountryRest {
 				return countries;
 			}
 			return getResponse(Status.NOT_FOUND);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			LOG.error(e.getMessage(), e);
 			return getResponse(Status.INTERNAL_SERVER_ERROR); 
 		}
@@ -179,7 +142,7 @@ public class CountryRest {
 				return countries;
 			}
 			return getResponse(Status.NOT_FOUND);
-		} catch(IOException e) {
+		} catch(Exception e) {
 			LOG.error(e.getMessage(), e);
 			return getResponse(Status.INTERNAL_SERVER_ERROR);
 		}
@@ -195,7 +158,7 @@ public class CountryRest {
 				return countries;
 			}
 			return getResponse(Status.NOT_FOUND);
-		} catch(IOException e) {
+		} catch(Exception e) {
 			LOG.error(e.getMessage(), e);
 			return getResponse(Status.INTERNAL_SERVER_ERROR);
 		}
@@ -211,10 +174,16 @@ public class CountryRest {
 				return countries;
 			}
 			return getResponse(Status.NOT_FOUND);
-		} catch(IOException e) {
+		} catch(Exception e) {
 			LOG.error(e.getMessage(), e);
 			return getResponse(Status.INTERNAL_SERVER_ERROR);
 		}
+	}
+	
+	@POST
+	public Object doPOST() {
+		LOG.info("Handling POST Request");
+		return getResponse(Status.METHOD_NOT_ALLOWED);
 	}
 	
 	private Response getResponse(Status status) {
@@ -224,4 +193,5 @@ public class CountryRest {
 				.entity(gson.toJson(new ResponseEntity(status.getStatusCode(),
 						status.getReasonPhrase()))).build();
 	}
+
 }

@@ -1,9 +1,8 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-package vaeke.restcountries.v0.rest;
+package vaeke.restcountries.v1.rest;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.Normalizer;
@@ -14,28 +13,28 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 
-import vaeke.restcountries.domain.ICountryRestSymbols;
-import vaeke.restcountries.v0.domain.Country;
-
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
+
+import vaeke.restcountries.v1.domain.Country;
+import vaeke.restcountries.v1.domain.ICountryRestSymbols;
 
 public class CountryService {
 	
 	private static final Logger LOG = Logger.getLogger(CountryService.class);
-	
-	private static CountryService countryService;
+
 	private static List<Country> countries;
 	
-	private CountryService() throws IOException{
+	private CountryService() {
 		initialize();
 	}
 	
-	public static CountryService getInstance() throws IOException {
-		if (countryService == null) {
-			countryService = new CountryService();
-		}
-		return countryService;
+	private static class InstanceHolder {
+		public static final CountryService INSTANCE = new CountryService();
+	}
+	
+	public static CountryService getInstance() {
+		return InstanceHolder.INSTANCE;
 	}
 	
 	public List<Country> getAll() {
@@ -46,11 +45,11 @@ public class CountryService {
 		int alphaLength = alpha.length();
 		for(Country country : countries) {
 			if (alphaLength == 2) {
-				if (country.getCca2().toLowerCase().equals(alpha.toLowerCase())) {
+				if (country.getAlpha2Code().toLowerCase().equals(alpha.toLowerCase())) {
 					return country;
 				}
 			} else if (alphaLength == 3) {
-				if (country.getCca3().toLowerCase().equals(alpha.toLowerCase())) {
+				if (country.getAlpha3Code().toLowerCase().equals(alpha.toLowerCase())) {
 					return country;
 				}
 			}
@@ -74,23 +73,57 @@ public class CountryService {
 	public List<Country> getByCurrency(String currency) {
 		List<Country> result = new ArrayList<Country>();
 		for(Country country : countries) {
-			if(country.getCurrency().toLowerCase().contains(currency.toLowerCase())) {
-				result.add(country);
+			for(String curr : country.getCurrencies()) {
+				if (curr.toLowerCase().equals(currency.toLowerCase())) {
+					result.add(country);
+				}
 			}
 		}
 		return result;
 	}
 	
-	public List<Country> getByName(String name) {
+	public List<Country> getByName(String name, boolean fullText) {
+		if(fullText) {
+			return fulltextSearch(name);
+		} else {
+			return substringSearch(name);	
+		}
+		
+	}
+	
+	private List<Country> substringSearch(String name) {
+		// Using 2 different 'for' loops to give priority to 'name' matches over alternative spellings
 		List<Country> result = new ArrayList<Country>();
 		for(Country country : countries) {
 			if(normalize(country.getName().toLowerCase()).contains(normalize(name.toLowerCase()))) {
 				result.add(country);
 			}
-			if(normalize(
-					country.getAltSpellings().toLowerCase()).contains(normalize(name.toLowerCase())) 
-					&& !result.contains(country)) {
+		}
+		for(Country country : countries) {
+			for (String alternative : country.getAltSpellings()) {
+				if( normalize(alternative.toLowerCase()).contains(normalize(name.toLowerCase())) 
+						&& !result.contains(country) ) {
+					result.add(country);
+				}
+			}
+		}
+		return result;
+	}
+	
+	private List<Country> fulltextSearch(String name) {
+		// Using 2 different 'for' loops to give priority to 'name' matches over alternative spellings
+		List<Country> result = new ArrayList<Country>();
+		for(Country country : countries) {
+			if(normalize(country.getName().toLowerCase()).equals(normalize(name.toLowerCase()))) {
 				result.add(country);
+			}
+		}
+		for(Country country : countries) {
+			for (String alternative : country.getAltSpellings()) {
+				if( normalize(alternative.toLowerCase()).equals(normalize(name.toLowerCase())) 
+						&& !result.contains(country) ) {
+					result.add(country);
+				}
 			}
 		}
 		return result;
@@ -99,8 +132,10 @@ public class CountryService {
 	public List<Country> getByCallingcode(String callingcode) {
 		List<Country> result = new ArrayList<Country>();
 		for(Country country : countries) {
-			if(country.getCallingCode().equals(callingcode))
-				result.add(country);
+			for(String callingCode : country.getCallingCodes()) {
+				if(callingCode.equals(callingcode))
+					result.add(country);
+			}
 		}
 		return result;
 	}
@@ -147,24 +182,30 @@ public class CountryService {
 		return result;
 	}
 	
-	private void initialize() throws IOException {
-		LOG.debug("Loading JSON Database v0");
-		InputStream is = this.getClass().getClassLoader().getResourceAsStream("countries.json");
+	private void initialize() {
+		LOG.debug("Loading JSON Database v1");
+		InputStream is = this.getClass().getClassLoader().getResourceAsStream("countriesV1.json");
 		Gson gson = new Gson();
-		JsonReader reader = new JsonReader(new InputStreamReader(is, "UTF-8"));
-		countries = new ArrayList<Country>();
-		reader.beginArray();
-		while(reader.hasNext()) {
-			Country country = gson.fromJson(reader, Country.class);
-			countries.add(country);
+		JsonReader reader;
+		try {
+			reader = new JsonReader(new InputStreamReader(is, "UTF-8"));
+			countries = new ArrayList<Country>();
+			reader.beginArray();
+			while(reader.hasNext()) {
+				Country country = gson.fromJson(reader, Country.class);
+				countries.add(country);
+			}
+			reader.endArray();
+	        reader.close();
+		} catch (Exception e) {
+			LOG.error("Could not load JSON Database v1 ");
 		}
-		reader.endArray();
-        reader.close();
+		
         
 	}
 	private String normalize(String string) {
 	    return Normalizer.normalize(string, Form.NFD)
 	        .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
 	}
-	
+
 }

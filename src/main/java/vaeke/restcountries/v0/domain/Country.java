@@ -5,9 +5,6 @@ package vaeke.restcountries.v0.domain;
 
 import java.util.List;
 
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.annotate.JsonPropertyOrder;
-
 @JsonPropertyOrder(alphabetic = true)
 public class Country {
 
